@@ -1,37 +1,36 @@
-import { Separator } from "@/components/ui/separator";
-import { TypographyH2 } from "@/components/ui/typography";
 import { createServerSupabaseClient } from "@/lib/server-utils";
 import { redirect } from "next/navigation";
 import AddSpeciesDialog from "./add-species-dialog";
-import SpeciesCard from "./species-card";
+import SpeciesList from "./species-list";
 
-export default async function SpeciesList() {
-  // Create supabase server component client and obtain user session from stored cookie
+export default async function SpeciesPage() {
+  // Create Supabase server client and obtain user session
   const supabase = createServerSupabaseClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   if (!session) {
-    // this is a protected route - only users who are signed in can view this route
     redirect("/");
   }
 
-  // Obtain the ID of the currently signed-in user
-  const sessionId = session.user.id;
+  // Fetch species from Supabase
+  const { data: species, error } = await supabase.from("species").select("*").order("id", { ascending: false });
 
-  const { data: species } = await supabase.from("species").select("*").order("id", { ascending: false });
+  if (error) {
+    console.error("Error fetching species:", error.message);
+    return <p className="text-red-500">Failed to load species.</p>;
+  }
 
   return (
-    <>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-        <TypographyH2>Species List</TypographyH2>
-        <AddSpeciesDialog userId={sessionId} />
+    <div className="mx-auto mt-10 max-w-4xl p-6">
+      <div className="mb-5 flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Species</h1>
+        <AddSpeciesDialog userId={session.user.id} />
       </div>
-      <Separator className="my-4" />
-      <div className="flex flex-wrap justify-center">
-        {species?.map((species) => <SpeciesCard key={species.id} species={species} />)}
-      </div>
-    </>
+
+      {/* ✅ Pass sessionId to SpeciesList so edit button works */}
+      <SpeciesList species={species || []} sessionId={session.user.id} />
+    </div>
   );
 }
